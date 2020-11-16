@@ -1,0 +1,173 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "FUNCTION_APP_NAME": {
+            "type": "string",
+            "maxLength": 46,
+            "metadata": {
+                "description": "This name must be unique and can contain only alphanumerics and hyphens."
+            }
+        },
+        "API_SERVICE_URL": {
+            "type": "string",
+            "metadata": {
+                "description": "the base URL of the API endpoint."
+            }
+        },
+        "API_KEY": {
+            "type": "string",
+            "metadata": {
+                "description": "Your API key."
+            }
+        }
+    },
+    "functions": [],
+    "variables": {
+        "webJobsStorageAccountName": "[toLower(concat('funcwebjobs', uniqueString(resourceGroup().id)))]",
+        "fileStorageAccountName": "[toLower(concat('filestore', uniqueString(resourceGroup().id)))]",
+        "functionAppName": "[concat(parameters('FUNCTION_APP_NAME'), '-', uniqueString(resourceGroup().id))]",
+        "appInsightsName": "[concat(toLower(parameters('FUNCTION_APP_NAME')), '-insights')]"
+        },
+    "resources": 
+    [
+        {
+            "name": "[variables('webJobsStorageAccountName')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "tags": {
+                "displayName": "[variables('webJobsStorageAccountName')]"
+            },
+            "location": "[resourceGroup().location]",
+            "kind": "StorageV2",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            }
+        },
+        {
+            "name": "[variables('fileStorageAccountName')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "location": "[resourceGroup().location]",
+            "kind": "StorageV2",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            }
+        },
+        {
+            "name": "[concat(variables('fileStorageAccountName'), '/default/input')]",
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('fileStorageAccountName'))]"
+            ]
+        },
+        {
+            "name": "[concat(variables('fileStorageAccountName'), '/default/transformed')]",
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('fileStorageAccountName'))]"
+            ]
+        },
+        {
+            "name": "[concat(variables('fileStorageAccountName'), '/default/errors')]",
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('fileStorageAccountName'))]"
+            ]
+        },
+        {
+            "name": "[variables('appInsightsName')]",
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2015-05-01",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "tags": {
+                "[concat('hidden-link:', resourceGroup().id, '/providers/Microsoft.Web/sites/', variables('functionAppName'))]": "Resource"
+            },
+            "properties": {
+                "applicationId": "[variables('appInsightsName')]",
+                "application_Type": "web"
+            }
+        },
+        {
+            "name": "[variables('functionAppName')]",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2018-11-01",
+            "location": "[resourceGroup().location]",
+            "kind": "functionapp",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('webJobsStorageAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('fileStorageAccountName'))]",
+                "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]"
+            ],
+            "properties": {
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('webJobsStorageAccountName'), ';AccountKey=', listKeys(variables('webJobsStorageAccountName'),'2019-06-01').keys[0].value,';EndpointSuffix=core.windows.net')]"
+                        },
+                        {
+                            "name": "fileStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('fileStorageAccountName'), ';AccountKey=', listKeys(variables('fileStorageAccountName'),'2019-06-01').keys[0].value,';EndpointSuffix=core.windows.net')]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('webJobsStorageAccountName'), ';AccountKey=', listKeys(variables('webJobsStorageAccountName'),'2019-06-01').keys[0].value,';EndpointSuffix=core.windows.net')]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTSHARE",
+                            "value": "[toLower(variables('functionAppName'))]"
+                        },
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~3"
+                        },
+                        {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "node"
+                        },
+                        {
+                            "name": "WEBSITE_NODE_DEFAULT_VERSION",
+                            "value": "~12"
+                        },
+                        {
+                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                            "value": "[reference(resourceId('microsoft.insights/components/', variables('appInsightsName')), '2015-05-01').InstrumentationKey]"
+                        },
+                        {
+                            "name": "API_ENDPOINT_BASE",
+                            "value": "[parameters('API_SERVICE_URL')]"
+                        },
+                        {
+                            "name": "API_KEY",
+                            "value": "[parameters('API_KEY')]"
+                        }
+                    ]
+                }
+            },
+            "resources": [
+                {
+                    "name": "web",
+                    "type": "sourcecontrols",
+                    "apiVersion": "2018-11-01",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Web/sites',variables('functionAppName'))]"
+                    ],
+                    "properties": {
+                       "repoUrl": "https://github.com/deep-secure/threat-removal-async-api-example-azure.git",
+                       "branch": "main",
+                       "isManualIntegration": true
+
+                    }
+                }
+            ]
+        }
+    ],
+    "outputs": {}
+}

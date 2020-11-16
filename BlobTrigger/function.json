@@ -1,0 +1,25 @@
+{
+  "bindings": [
+    {
+      "name": "inputBlob",
+      "type": "blobTrigger",
+      "direction": "in",
+      "path": "input/{blobname}.{blobextension}",
+      "connection": "fileStorage"
+    },
+    {
+      "name": "successBlob",
+      "type": "blob",
+      "path": "transformed/{blobname}.{blobextension}",
+      "connection": "fileStorage",
+      "direction": "out"
+    },
+    {
+      "name": "errorBlob",
+      "type": "blob",
+      "path": "errors/{blobname}.error.json",
+      "connection": "fileStorage",
+      "direction": "out"
+    }
+  ]
+}
