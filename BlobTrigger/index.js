@@ -45,7 +45,7 @@ const inputBlobName = path.basename(context.bindingData.blobTrigger)
             }
         }
         else {
-            const errorJson = {"error": {"type": "INSTANT_API_CODE_SAMPLE_ERROR", "message": err.message}};
+            const errorJson = {"error": {"type": "ASYNC_API_CODE_SAMPLE_ERROR", "message": err.message}};
             context.log.error(errorJson, "\n")
             return {
                 errorBlob: errorJson
@@ -75,7 +75,8 @@ async function upload(uploadLink, inputBlob) {
             method: uploadLink.method,
             headers: uploadLink.headers,
             url: uploadLink.url,
-            maxContentLength: Math.max(20000, inputBlob.length * 3),
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
             data: inputBlob
         })
     }
