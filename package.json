@@ -1,15 +1,15 @@
 {
-  "name": "threat_removal_async",
+  "name": "azureasyncapicodesample",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
-    "test": "node index.test.js"
+    "start": "func start",
+    "test": "echo \"No tests yet...\""
   },
-  "author": "",
-  "license": "ISC",
-  "private": true,
   "dependencies": {
-    "axios": "^0.21.1"
-  }
+    "@azure/storage-blob": "^12.2.1",
+    "axios": "^0.20.0",
+    "mime-types": "^2.1.27"
+  },
+  "devDependencies": {}
 }
