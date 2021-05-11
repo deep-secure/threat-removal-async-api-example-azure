@@ -75,8 +75,8 @@ async function upload(uploadLink, inputBlob) {
             method: uploadLink.method,
             headers: uploadLink.headers,
             url: uploadLink.url,
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity,
+            maxContentLength: Math.max(20000, inputBlob.length),
+            maxBodyLength: Math.max(20000, inputBlob.length),
             data: inputBlob
         })
     }
@@ -107,6 +107,7 @@ async function download(resultLink) {
         method: resultLink.method,
         headers: resultLink.headers,
         maxContentLength: Math.max(20000, resultLink.fileSize),
+        maxBodyLength: Math.max(20000, resultLink.fileSize),
         responseType: 'arraybuffer'
     })
 }
