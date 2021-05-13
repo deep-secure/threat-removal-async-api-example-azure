@@ -11,23 +11,25 @@ const containerClient = storage.BlobServiceClient.fromConnectionString(fileStora
 module.exports.index = async function(context, inputBlob) {
 const inputBlobName = path.basename(context.bindingData.blobTrigger)
     try {
-        context.log("Async Api blob trigger function triggered by", inputBlobName, "(filesize:", inputBlob.length, "Bytes)")
+        context.log(`Instant Api blob trigger function triggered by "${inputBlobName}" (filesize: ${inputBlob.length} Bytes)`)
 
         const guessedMimeType = mime.lookup(inputBlobName)
         if(guessedMimeType) 
-            context.log("Guessed mime type for", inputBlobName, "is", guessedMimeType)
+            context.log(`Guessed mime type for "${inputBlobName}" is ${guessedMimeType}`)
         else
             throw new Error("Mime type could not be guessed (missing or unknown suffix)")
 
+        context.log(`Sending "${inputBlobName}" to Async API`)
         const initResponse = await init(API_ENDPOINT_BASE, API_KEY, guessedMimeType)
         await upload(initResponse.data.links.upload, inputBlob)
+        context.log(`"${inputBlobName}" has been sent. Transform pending...`)
         const resultLink = await checkStatusUntilComplete(initResponse.data.links.status)
         const downloadResponse = await download(resultLink)
 
         
         containerClient.getBlockBlobClient(inputBlobName).deleteIfExists()
 
-        context.log("file", inputBlobName, "successfully transformed\n")
+        context.log(`"${inputBlobName}" successfully transformed`)
 
         return {
             successBlob: downloadResponse.data
@@ -36,19 +38,39 @@ const inputBlobName = path.basename(context.bindingData.blobTrigger)
     catch(err) {
         containerClient.getBlockBlobClient(inputBlobName).deleteIfExists()
 
-        context.log.error("An error has occured during the processing of", inputBlobName)
+        context.log.error(`An error has occured during the processing of "${inputBlobName}"`)
 
         if(err.response && err.response.data) {
-            context.log.error(err.response.data, "\n")
-            return {
-                errorBlob: err.response.data
+            try {
+                const parsedJsonError = JSON.parse(err.response.data)
+                context.log.error(parsedJsonError)
+                return {
+                    errorBlob: parsedJsonError
+                }
+            }
+            catch(json_err) {
+                try {
+                    const statusString = `HTTP ${err.response.status} ${err.response.statusText}`
+                    const parsedHttpData = new Buffer.from(err.response.data).toString()
+                    const httpError = {"error": {"type": statusString, "message": parsedHttpData}};
+                    context.log.error(httpError)
+                    return {
+                        errorBlob: httpError
+                    }
+                }
+                catch(parse_err) {
+                    return {
+                        errorBlob: err.response.data
+                    }
+                }
+
             }
         }
         else {
-            const errorJson = {"error": {"type": "ASYNC_API_CODE_SAMPLE_ERROR", "message": err.message}};
-            context.log.error(errorJson, "\n")
+            const sampleCodeError = {"error": {"type": "ASYNC_API_CODE_SAMPLE_ERROR", "message": err.message}};
+            context.log.error(sampleCodeError)
             return {
-                errorBlob: errorJson
+                errorBlob: sampleCodeError
             }
         }
     }
