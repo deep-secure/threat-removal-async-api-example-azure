@@ -11,7 +11,7 @@ const containerClient = storage.BlobServiceClient.fromConnectionString(fileStora
 module.exports.index = async function(context, inputBlob) {
 const inputBlobName = path.basename(context.bindingData.blobTrigger)
     try {
-        context.log(`Instant Api blob trigger function triggered by "${inputBlobName}" (filesize: ${inputBlob.length} Bytes)`)
+        context.log(`Async Api blob trigger function triggered by "${inputBlobName}" (filesize: ${inputBlob.length} Bytes)`)
 
         const guessedMimeType = mime.lookup(inputBlobName)
         if(guessedMimeType) 
